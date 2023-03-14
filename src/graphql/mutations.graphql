@@ -1,0 +1,12 @@
+mutation Login($loginInput: LoginDto!) {
+  login(loginInput: $loginInput) {
+    access_token
+  }
+}
+
+mutation Signup($createUserInput: CreateUserInput!) {
+  signup(createUserInput: $createUserInput) {
+    status
+    message
+  }
+}

@@ -1,0 +1,25 @@
+.navbar{
+  width: 100%;
+  background: #006cc2;
+  color: whiteSmoke;
+  font-weight: 0;
+  height: 10vh;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.navbarBtnContainer{
+  display: flex;
+  justify-content: space-around;
+  min-width: 10%;
+  padding-right: 10px;
+}
+
+.navbarBtn:hover{
+  background-color: whitesmoke;
+  margin-right: 10px;
+  border-radius: 10px;
+  color: #006cc2;
+  cursor: pointer;
+}
