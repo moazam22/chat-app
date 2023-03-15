@@ -16,6 +16,7 @@ const Chat = () => {
   const [rooms, setRooms] = useState<RoomsType[]>([]);
   const [messages, setMessages] = useState<MessageType[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
+  const [typing, setTyping] = useState<null | string>(null);
   const { socket, user } = useContext(GlobalContext);
 
   const filterOnlineUsers = useCallback(
@@ -49,6 +50,25 @@ const Chat = () => {
   }, [socket]);
 
   useEffect(() => {
+    socket?.on("typing", (data) => {
+      if (selectedRoom === data.roomName && user?.id !== data.id) {
+        setTyping(data.message);
+      }
+    });
+
+    socket?.on("stoppedTyping", (data) => {
+      if (selectedRoom === data.roomName && user?.id !== data.id) {
+        setTyping(null);
+      }
+    });
+
+    return () => {
+      socket?.off("typing");
+      socket?.off("stoppedTyping");
+    };
+  }, [selectedRoom, user, socket]);
+
+  useEffect(() => {
     if (!!selectedUser && !!rooms?.length) {
       loadMessages(selectedUser);
     }
@@ -60,7 +80,6 @@ const Chat = () => {
     index === -1 ? _rooms.push(data) : (_rooms[index].messages = [...data.messages]);
     setRooms([..._rooms]);
     if ((!!selectedRoom && selectedRoom === data.roomName) || !!newRoomCreated) {
-      console.log("cause of fired 3");
       setMessages([...data.messages]);
     }
   };
@@ -73,21 +92,8 @@ const Chat = () => {
 
   useEffect(() => {
     if (!!selectedUser && !!user?.id && !!socket) {
-      const index = isRoomExist(`${user.id}&${selectedUser.id}`);
-      if (index === -1) {
-        const res = isRoomExist(`${selectedUser.id}&${user.id}`);
-        if (res === -1) {
-          joinRoom(user, selectedUser, socket);
-        } else {
-          console.log("fired1");
-          setMessages(rooms[res].messages);
-          setSelectedRoom(rooms[res].roomName);
-        }
-      } else {
-        console.log("fired2");
-        setMessages(rooms[index].messages);
-        setSelectedRoom(rooms[index].roomName);
-      }
+      const isLoaded = loadMessages(selectedUser);
+      if (!isLoaded) joinRoom(user, selectedUser, socket);
     }
   }, [selectedUser, user, socket]);
 
@@ -96,16 +102,18 @@ const Chat = () => {
     return index;
   };
 
-  const loadMessages = (user: OnlineUserType) => {
+  const loadMessages = (user: OnlineUserType): boolean => {
     // eslint-disable-next-line array-callback-return
     const room = rooms.filter((_room) => {
       const users = _room.roomName.split("&");
       if (!!users.includes(user.id)) return _room.messages;
     })[0];
     if (!!room?.messages?.length) {
-      console.log("fired3");
       setMessages([...room.messages]);
+      setSelectedRoom(room.roomName);
+      return true;
     }
+    return false;
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -123,19 +131,8 @@ const Chat = () => {
     socket?.emit("joinRoom", payload);
   };
 
-  console.log("ROOMS ============= ", rooms);
-
   return (
     <Flex pt="2em" pb="1em" h="90vh" ml="5%" mr="5%">
-      <button
-        onClick={() => {
-          console.log("socketId = ", socket?.id);
-          console.log("selectedRoom = ", selectedRoom);
-        }}
-      >
-        Room
-      </button>
-      <button onClick={() => console.log("selectedRoom = ", rooms)}>All rooms</button>
       <OnlineUsersList
         onlineUsers={filteredOnlineUsers}
         selectedUser={selectedUser}
@@ -148,6 +145,7 @@ const Chat = () => {
         user={user}
         socket={socket}
         roomName={selectedRoom}
+        typing={typing}
       />
     </Flex>
   );

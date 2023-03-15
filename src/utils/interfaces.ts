@@ -24,6 +24,7 @@ export interface ChatboxPropsType {
   user: UserType | null;
   socket: Socket | null;
   roomName: string | null;
+  typing: null | string;
 }
 
 export interface OnlineUserType {

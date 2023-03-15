@@ -1,9 +1,10 @@
 import { Flex, Text, useToast } from "@chakra-ui/react";
-import { createRef, useEffect } from "react";
-import { allUsersOffline, border, selectUserMessage } from "../../../utils";
+import { createRef, useEffect, useState } from "react";
+import { allUsersOffline, border, selectUserMessage, withTypingHeight } from "../../../utils";
 import { ChatboxPropsType } from "../../../utils/interfaces";
 import MessageInput from "../../MessageInput/MessageInput";
 import UserAvatar from "../../UserAvatar/UserAvatar";
+import TypingAnimation from "../TypingAnimation/TypingAnimation";
 import ChatHelperText from "./ChatHelperText";
 
 const Chatbox: React.FC<ChatboxPropsType> = ({
@@ -13,8 +14,10 @@ const Chatbox: React.FC<ChatboxPropsType> = ({
   user,
   socket,
   roomName,
+  typing,
 }) => {
   const messagesRef = createRef<HTMLDivElement>();
+  const [isEmitterSend, setIsEmitterSend] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -23,14 +26,15 @@ const Chatbox: React.FC<ChatboxPropsType> = ({
   }, [messages, messagesRef]);
 
   const sendMessage = (msgBody: string) => {
+    if (!!isEmitterSend) socket?.emit("stopTyping", { roomName, userName: user?.name });
     const payload = {
       body: msgBody,
       senderId: user?.id,
       roomName: roomName,
       time: new Date(),
     };
+
     if (!!socket && !!user?.id && !!roomName) {
-      console.log("payload = ", payload);
       socket.emit("sendMessage", payload);
     } else {
       toast({
@@ -42,7 +46,21 @@ const Chatbox: React.FC<ChatboxPropsType> = ({
     }
   };
 
+  const sendTypingEmitter = () => {
+    if (!isEmitterSend) {
+      socket?.emit("typing", { roomName, userName: user?.name });
+      setIsEmitterSend(true);
+    }
+  };
+
+  const stopTyping = () => {
+    socket?.emit("stopTyping", { roomName, userName: user?.name });
+    setIsEmitterSend(false);
+  };
+
   const name = !!selectedUser?.name ? selectedUser.name : "Unknown";
+
+  const height = !!typing ? withTypingHeight : "83%";
 
   return (
     <Flex
@@ -62,30 +80,33 @@ const Chatbox: React.FC<ChatboxPropsType> = ({
               {name}
             </Text>
           </Flex>
-          <Flex maxH="83%" minH="83%" overflowY="auto" w="100%" flexWrap="wrap">
+          <Flex maxH={height} minH={height} overflowY="auto" w="100%" flexWrap="wrap">
             {!!messages?.length &&
               messages.map((message, index) => (
                 <Flex w="100%" direction="column" m="10px" key={index}>
                   <Flex
-                    // bg="#c2a400"
                     bg={message.senderId === user?.id ? "#aaaaaa" : "#006cc2"}
                     borderRadius="15px"
                     w="fit-content"
                     direction="column"
                     p="15px"
-                    // alignSelf={currentChatMessages?.senderId === user?.id ? 'flex-end' : 'flex-start'}
                     alignSelf={message.senderId === user?.id ? "flex-end" : "flex-start"}
                     color="whitesmoke"
                   >
                     <Text>{message.body}</Text>
-                    {/* <Text alignSelf='flex-end' fontSize='10px'>{moment(message.createdAt).format('DD-MM-YYYY hh:mm A')}</Text> */}
                   </Flex>
                 </Flex>
               ))}
             <div ref={messagesRef} />
           </Flex>
-          <Flex w="100%" h="7%">
-            <MessageInput sendMessage={sendMessage} />
+
+          <Flex w="100%" h={!!typing ? "9%" : "7%"} flexDirection="column">
+            {!!typing && <TypingAnimation typingMessage={typing} />}
+            <MessageInput
+              sendMessage={sendMessage}
+              sendTypingEmitter={sendTypingEmitter}
+              stopTyping={stopTyping}
+            />
           </Flex>
         </>
       ) : (

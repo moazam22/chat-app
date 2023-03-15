@@ -10,12 +10,7 @@ export const makeSocketConnection = (token: string, dispatch: Dispatch<Action>) 
       },
     });
     socket.on("connect", function () {
-      console.log("Socket ID = ", socket.id);
       if (!!socket?.id) localStorage.setItem("socketId", socket.id);
-      // let lsMessages = localStorage.getItem('messages');
-      // const messages: Message[] = !!lsMessages ? JSON.parse(lsMessages) : [];
-      // if(!!messages && !!messages?.length)
-      //   dispatch({type: ActionTypes.SET_MESSAGES, messages: [...messages]});
     });
     dispatch({ type: ActionTypes.SET_SOCKET, socket: socket });
   } catch (err) {
