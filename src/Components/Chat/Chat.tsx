@@ -28,6 +28,59 @@ const Chat = () => {
     [user]
   );
 
+  const isRoomExist = useCallback(
+    (roomName: string): number => {
+      const index = rooms.findIndex((room) => room.roomName === roomName);
+      return index;
+    },
+    [rooms]
+  );
+
+  const handleReceivedMessages = useCallback(
+    (data: RoomsType, newRoomCreated: boolean) => {
+      const _rooms = [...rooms];
+      const index = isRoomExist(data.roomName);
+      index === -1 ? _rooms.push(data) : (_rooms[index].messages = [...data.messages]);
+      setRooms([..._rooms]);
+      if ((!!selectedRoom && selectedRoom === data.roomName) || !!newRoomCreated) {
+        setMessages([...data.messages]);
+      }
+    },
+    [rooms, selectedRoom, isRoomExist]
+  );
+
+  const loadMessages = useCallback(
+    (user: OnlineUserType): boolean => {
+      // eslint-disable-next-line array-callback-return
+      const room = rooms.filter((_room) => {
+        const users = _room.roomName.split("&");
+        if (!!users.includes(user.id)) return _room.messages;
+      })[0];
+      if (!!room?.messages?.length) {
+        setMessages([...room.messages]);
+        setSelectedRoom(room.roomName);
+        return true;
+      }
+      return false;
+    },
+    [rooms]
+  );
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const updateSelectedUser = useCallback((user: OnlineUserType) => {
+    setSelectedUser(user);
+  }, []);
+
+  const joinRoom = (user: UserType, selectedUser: OnlineUserType, socket: Socket) => {
+    const payload = {
+      roomName: `${user.id}&${selectedUser.id}`,
+      hostId: user.id,
+      users: [{ id: user.id, name: user.name, socketId: socket.id }, selectedUser],
+      isGroup: false,
+    };
+    socket?.emit("joinRoom", payload);
+  };
+
   useEffect(() => {
     socket?.on("onlineUsers", ({ onlineUsers }) => {
       setOnlineUsers([...onlineUsers]);
@@ -47,7 +100,7 @@ const Chat = () => {
       socket?.off("roomJoined");
       socket?.off("messages");
     };
-  }, [socket]);
+  }, [socket, handleReceivedMessages]);
 
   useEffect(() => {
     socket?.on("typing", (data) => {
@@ -72,17 +125,7 @@ const Chat = () => {
     if (!!selectedUser && !!rooms?.length) {
       loadMessages(selectedUser);
     }
-  }, [rooms, selectedUser]);
-
-  const handleReceivedMessages = (data: RoomsType, newRoomCreated: boolean) => {
-    const _rooms = [...rooms];
-    const index = isRoomExist(data.roomName);
-    index === -1 ? _rooms.push(data) : (_rooms[index].messages = [...data.messages]);
-    setRooms([..._rooms]);
-    if ((!!selectedRoom && selectedRoom === data.roomName) || !!newRoomCreated) {
-      setMessages([...data.messages]);
-    }
-  };
+  }, [rooms, selectedUser, loadMessages]);
 
   useEffect(() => {
     if (!!user?.id && !!onlineUsers?.length) {
@@ -95,41 +138,7 @@ const Chat = () => {
       const isLoaded = loadMessages(selectedUser);
       if (!isLoaded) joinRoom(user, selectedUser, socket);
     }
-  }, [selectedUser, user, socket]);
-
-  const isRoomExist = (roomName: string): number => {
-    const index = rooms.findIndex((room) => room.roomName === roomName);
-    return index;
-  };
-
-  const loadMessages = (user: OnlineUserType): boolean => {
-    // eslint-disable-next-line array-callback-return
-    const room = rooms.filter((_room) => {
-      const users = _room.roomName.split("&");
-      if (!!users.includes(user.id)) return _room.messages;
-    })[0];
-    if (!!room?.messages?.length) {
-      setMessages([...room.messages]);
-      setSelectedRoom(room.roomName);
-      return true;
-    }
-    return false;
-  };
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const updateSelectedUser = useCallback((user: OnlineUserType) => {
-    setSelectedUser(user);
-  }, []);
-
-  const joinRoom = (user: UserType, selectedUser: OnlineUserType, socket: Socket) => {
-    const payload = {
-      roomName: `${user.id}&${selectedUser.id}`,
-      hostId: user.id,
-      users: [{ id: user.id, name: user.name, socketId: socket.id }, selectedUser],
-      isGroup: false,
-    };
-    socket?.emit("joinRoom", payload);
-  };
+  }, [selectedUser, user, socket, loadMessages]);
 
   return (
     <Flex pt="2em" pb="1em" h="90vh" ml="5%" mr="5%">
